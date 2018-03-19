@@ -26,6 +26,7 @@ define(function (require) {
     var BookEnd = require('./mip-story-bookend');
     var customElement = require('customElement').create();
     var util = require('util');
+    var naboo = require('./animate');
     var dm = util.dom;
     var EventEmitter = util.EventEmitter;
     var Gesture = util.Gesture;
@@ -58,6 +59,40 @@ define(function (require) {
         this.initEvent();
         // 切换到第一页
         this.switchTo({status: 1, notIncrease: 1});
+    };
+
+    MIPStory.prototype.initAnimate = function () {
+        var self = this;
+        var currentEle = storyViews[self.currentIndex];
+        var $animate = currentEle.querySelectorAll('[animate-in]');
+
+
+        [].slice.call($animate).forEach(function (el) {
+            var animates = String(el.getAttribute('animate-in')).split(/\s+/);
+            var ease = el.getAttribute('animate-in-ease');
+            var duration = el.getAttribute('animate-in-duration');
+            var delay = el.getAttribute('animate-in-delay');
+            var offset = el.getBoundingClientRect();
+
+            offset.pageHeight = window.innerHeight;
+            offset.pageWidth = window.innerWidth;
+
+            // 这里处理下名称是因为 naboo register 的 key 没有做去重，可能被别的项目注册覆盖
+            animates.map(function (name) {
+                return 'mip-story-' + name;
+            }).filter(function (name) {
+                if (!naboo[name]) {
+                    console.warn('mip-story:', '元素 `template-in` 属性未知', el);
+                }
+                return !!naboo[name];
+            }).forEach(function (name) {
+                naboo[name](el, {
+                    ease: ease,
+                    duration: duration,
+                    delay: delay
+                }, offset).start();
+            });
+        });
     };
 
     MIPStory.prototype.initAudio = function () {
@@ -264,6 +299,8 @@ define(function (require) {
         currentEle.customElement.setActive(true, this.muted);
         this.progress.updateProgress(this.currentIndex, data.status);
         this.preInex = this.currentIndex;
+
+        this.initAnimate();
 
         // 右翻
         if (!data.notIncrease) {
